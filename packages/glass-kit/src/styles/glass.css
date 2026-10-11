@@ -1,0 +1,291 @@
+/* ==========================================================================
+   Liquid Glass — the material
+
+   Layering, back to front:
+     backdrop-filter   blur → (Chromium) SVG lens refraction → saturate
+     background        tint veil + overlay
+     box-shadow        drop shadow · separation edge · top/bottom inner shade
+     ::before          specular rim — light catching the bezel
+     ::after           interaction glow that follows the pointer
+     content
+
+   The refraction url() is spliced in inline by <Glass>; everything else
+   lives here so non-Chromium browsers get the same surface minus lensing.
+   ========================================================================== */
+
+@layer components {
+  .lg-glass {
+    /* Transparency slider → scale factors (derived per element so a subtree
+       can override --lg-transparency). */
+    --_o: calc(1.6 - 1.1 * var(--lg-transparency));
+    --_b: calc(0.5 + 0.8 * var(--lg-transparency));
+
+    --_blur: calc(var(--lg-glass-blur-large) * var(--_b));
+    --_tint-rgb: var(--lg-glass-tint-rgb);
+    --_tint-a: min(1, calc(var(--lg-glass-tint-alpha) * var(--_o)));
+    --_overlay: var(--lg-glass-overlay);
+    --_shadow: var(--lg-glass-shadow);
+    --_rim: var(--lg-glass-rim);
+    --_specular: var(--lg-glass-specular);
+    --_radius: var(--lg-radius-glass);
+    --_light-angle: 135deg;
+    --_glow-x: 50%;
+    --_glow-y: 50%;
+
+    position: relative;
+    isolation: isolate;
+    border-radius: var(--_radius);
+    color: var(--lg-label);
+    background:
+      linear-gradient(var(--_overlay), var(--_overlay)),
+      rgb(var(--_tint-rgb) / var(--_tint-a));
+    -webkit-backdrop-filter: blur(var(--_blur)) saturate(var(--lg-glass-saturate));
+    backdrop-filter: blur(var(--_blur)) saturate(var(--lg-glass-saturate));
+    box-shadow:
+      var(--_shadow),
+      0 0 0 0.5px var(--lg-glass-edge),
+      inset 0 40px 10px -40px var(--lg-glass-inner),
+      inset 0 -40px 10px -40px var(--lg-glass-inner);
+    transition:
+      transform var(--lg-spring-snappy-duration) var(--lg-spring-snappy),
+      background-color 0.2s var(--lg-ease-standard),
+      box-shadow 0.25s var(--lg-ease-standard);
+  }
+
+  /* Specular rim: a 1px lit edge, brightest where the light angle hits. */
+  .lg-glass::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    padding: 1px;
+    pointer-events: none;
+    background:
+      linear-gradient(
+        var(--_light-angle),
+        var(--_specular) 0%,
+        rgb(255 255 255 / 0) 30%,
+        rgb(255 255 255 / 0) 62%,
+        color-mix(in srgb, var(--_specular) 60%, transparent) 100%
+      ),
+      linear-gradient(var(--_rim), var(--_rim));
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box exclude,
+      linear-gradient(#000 0 0);
+  }
+
+  /* Interaction glow — light blooming from the touch point. */
+  .lg-glass::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(
+      circle at var(--_glow-x) var(--_glow-y),
+      rgb(255 255 255 / 0.38),
+      rgb(255 255 255 / 0.08) 45%,
+      rgb(255 255 255 / 0) 75%
+    );
+    transition: opacity 0.35s var(--lg-ease-out);
+  }
+
+  /* ---- Sizes ------------------------------------------------------------ */
+  .lg-glass[data-size="small"] {
+    --_blur: calc(var(--lg-glass-blur-small) * var(--_b));
+    --_tint-rgb: var(--lg-glass-small-tint-rgb);
+    --_tint-a: min(1, calc(var(--lg-glass-small-tint-alpha) * var(--_o)));
+    --_overlay: transparent;
+    --_shadow: var(--lg-glass-small-shadow);
+    --_rim: var(--lg-glass-small-rim);
+    --_radius: var(--lg-radius-pill);
+  }
+
+  /* ---- Variants --------------------------------------------------------- */
+  .lg-glass[data-variant="clear"] {
+    --_blur: calc(var(--lg-glass-blur-clear) * var(--_b));
+    --_tint-rgb: var(--lg-glass-clear-tint-rgb);
+    --_tint-a: min(1, calc(var(--lg-glass-clear-tint-alpha) * var(--_o)));
+    --_overlay: var(--lg-glass-clear-dim);
+    --_shadow: var(--lg-glass-small-shadow);
+  }
+
+  .lg-glass[data-variant="identity"] {
+    background: none;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    box-shadow: none;
+  }
+  .lg-glass[data-variant="identity"]::before,
+  .lg-glass[data-variant="identity"]::after {
+    display: none;
+  }
+
+  /* Prominent / tinted glass — accent-coloured, still lit and refractive. */
+  .lg-glass[data-tinted] {
+    --_overlay: transparent;
+    color: var(--lg-label-on-accent);
+    background:
+      linear-gradient(rgb(255 255 255 / 0.08), rgb(255 255 255 / 0)),
+      color-mix(
+        in srgb,
+        var(--lg-glass-tint, var(--lg-accent)) calc(min(1, 0.82 * var(--_o)) * 100%),
+        transparent
+      );
+    --_rim: color-mix(in srgb, var(--lg-glass-tint, var(--lg-accent)) 40%, white);
+  }
+
+  /* Tinted glass — colour washed into the glass, not painted on top.
+     Near-zero blur keeps the backdrop crisp so the deep lensing reads; a thin
+     bright rim (top) and soft return light (bottom) give it thickness, and a
+     denser colour band inside the bezel makes the edge feel like a solid lip.
+     Styles tune the colour amount, blur and darkness. */
+  .lg-glass[data-tinted][data-tint-mode="glass"] {
+    --_c0: var(--lg-glass-tint, var(--lg-accent));
+    --_c: color-mix(in srgb, var(--_c0), black var(--_dark, 0%));
+    --_amt: 0.55;
+    --_blur: calc(var(--_tblur, 0.5px) * var(--_b));
+    --_rim: color-mix(in srgb, var(--_c0) 30%, white);
+    --_specular: rgb(255 255 255 / 0.95);
+    color: #fff;
+    text-shadow: 0 1px 1.5px rgb(0 0 0 / 0.22);
+    background:
+      linear-gradient(
+        180deg,
+        rgb(255 255 255 / var(--_sheen, 0.1)),
+        rgb(255 255 255 / 0) 35%,
+        rgb(255 255 255 / 0) 75%,
+        rgb(255 255 255 / calc(var(--_sheen, 0.1) * 0.8))
+      ),
+      color-mix(in srgb, var(--_c) calc(min(0.96, var(--_amt) * var(--_o) / 1.05) * 100%), transparent);
+    box-shadow:
+      0 6px 16px rgb(0 0 0 / 0.16),
+      0 0 0 0.5px color-mix(in srgb, var(--_c0) 40%, white),
+      inset 0 1px 0 rgb(255 255 255 / 0.55),
+      inset 0 -1px 0 rgb(255 255 255 / 0.3),
+      inset 0 0 14px 1px color-mix(in srgb, var(--_c) 65%, transparent);
+  }
+  .lg-glass[data-tint-mode="glass"][data-tint-style="clear"] {
+    --_amt: 0.26;
+    --_tblur: 0.3px;
+  }
+  .lg-glass[data-tint-mode="glass"][data-tint-style="frosted"] {
+    --_amt: 0.5;
+    --_tblur: 10px;
+    --_sheen: 0.22;
+  }
+  .lg-glass[data-tint-mode="glass"][data-tint-style="vivid"] {
+    --_amt: 0.86;
+    --_tblur: 2px;
+    --_sheen: 0.16;
+  }
+  .lg-glass[data-tint-mode="glass"][data-tint-style="deep"] {
+    --_amt: 0.72;
+    --_dark: 38%;
+    --_sheen: 0.06;
+  }
+
+  /* ---- Interaction ------------------------------------------------------ */
+  .lg-glass[data-interactive] {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+  }
+  .lg-glass[data-interactive]:hover::after {
+    opacity: 0.35;
+  }
+  .lg-glass[data-interactive][data-pressed]::after {
+    opacity: 1;
+    transition-duration: 0.12s;
+  }
+  .lg-glass[data-interactive][data-pressed] {
+    transform: scale(var(--lg-press-scale, 1.06));
+  }
+  .lg-glass[data-interactive]:focus-visible {
+    outline: 2.5px solid var(--lg-accent);
+    outline-offset: 2px;
+  }
+  .lg-glass[data-interactive][data-disabled] {
+    cursor: default;
+    opacity: 0.45;
+    pointer-events: none;
+  }
+
+  /* ---- Transparency slider presets -------------------------------------- */
+  .lg-transparency-fully-tinted {
+    --lg-transparency: 0;
+  }
+  .lg-transparency-tinted {
+    --lg-transparency: 0.25;
+  }
+  .lg-transparency-default {
+    --lg-transparency: 0.5;
+  }
+  .lg-transparency-clear {
+    --lg-transparency: 0.75;
+  }
+  .lg-transparency-ultra-clear {
+    --lg-transparency: 1;
+  }
+
+  /* ---- Background materials (content layer, not floating chrome) -------- */
+  .lg-material-chrome,
+  .lg-material-thick,
+  .lg-material-regular,
+  .lg-material-thin,
+  .lg-material-ultrathin {
+    -webkit-backdrop-filter: blur(30px) saturate(1.8);
+    backdrop-filter: blur(30px) saturate(1.8);
+  }
+  .lg-material-chrome {
+    background-color: var(--lg-material-chrome);
+  }
+  .lg-material-thick {
+    background-color: var(--lg-material-thick);
+  }
+  .lg-material-regular {
+    background-color: var(--lg-material-regular);
+  }
+  .lg-material-thin {
+    background-color: var(--lg-material-thin);
+  }
+  .lg-material-ultrathin {
+    background-color: var(--lg-material-ultrathin);
+  }
+}
+
+/* ---- Accessibility: settings sit on top of personalization -------------- */
+@media (prefers-reduced-transparency: reduce) {
+  .lg-glass,
+  .lg-glass[class*="lg-transparency-"],
+  [class*="lg-transparency-"] .lg-glass {
+    --lg-transparency: 0 !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .lg-glass {
+    --_rim: var(--lg-label-tertiary);
+    box-shadow:
+      var(--_shadow),
+      0 0 0 1px var(--lg-label-secondary);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lg-glass,
+  .lg-glass::after {
+    transition-property: opacity, background-color, box-shadow;
+  }
+  .lg-glass[data-interactive][data-pressed] {
+    transform: none;
+  }
+}

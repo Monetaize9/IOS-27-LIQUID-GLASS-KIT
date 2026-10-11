@@ -1,0 +1,14 @@
+{
+  "name": "liquid-glass-kit-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w docs",
+    "build": "npm run build -w liquid-glass-kit && npm run build -w docs",
+    "typecheck": "npm run typecheck -w liquid-glass-kit && npm run typecheck -w docs",
+    "lint": "npm run lint -w docs"
+  }
+}

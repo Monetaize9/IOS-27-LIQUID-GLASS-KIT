@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+dist/
+.DS_Store
+*.log
+.env
+.env.*
+.claude/
+.vercel/
+# Generated single-file bundle for chat bots — rebuild on demand
+LIQUID-GLASS-KIT-ALL-CODE.txt

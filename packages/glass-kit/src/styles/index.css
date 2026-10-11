@@ -1,0 +1,8 @@
+/* Match Tailwind 4's layer order so the kit can be imported before or after
+   `@import "tailwindcss"`: preflight (base) stays below the kit's components,
+   and utilities stay on top so className overrides always win. */
+@layer theme, base, components, utilities;
+
+@import "./tokens.css";
+@import "./glass.css";
+@import "./components.css";

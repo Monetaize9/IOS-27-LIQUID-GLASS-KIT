@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--lg-font);
+  --color-label: var(--lg-label);
+  --color-label-secondary: var(--lg-label-secondary);
+  --color-accent: var(--lg-accent);
+}
+
+/* Only on html: a body background would paint over negative-z wallpapers. */
+html {
+  background: var(--lg-bg);
+}
+
+body {
+  color: var(--lg-label);
+  font-family: var(--lg-font);
+  -webkit-font-smoothing: antialiased;
+}
